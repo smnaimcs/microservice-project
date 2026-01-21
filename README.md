@@ -22,69 +22,68 @@ graph TD
     end
 ```
 
-## 🚀 Setup & Installation
+## 🚀 Quick Start
 
-### Prerequisites
-- **Java 21** or higher
-- **Maven 3.9+**
-- **PostgreSQL 15+**
-- **Docker & Docker Compose** (for containerized environment)
+To set up the entire environment (Services + Database) with a single command:
 
-### Local Development
-1. **Clone the repository**:
-   ```bash
-   git clone <repository-url>
-   cd microservice-project/user
-   ```
+```bash
+./setup.sh --quick
+```
 
-2. **Configure Database**:
-   Create a PostgreSQL database named `user_db` and update `src/main/resources/application.properties` with your credentials.
+This will:
+1. Check for necessary dependencies (Docker, etc.).
+2. Create a `.env` file if it doesn't exist.
+3. Start all services using Docker Compose.
 
-3. **Build and Run**:
-   ```bash
-   mvn clean install
-   mvn spring-boot:run
-   ```
+---
 
-## 🛠️ Implementation Brief
+## 🏗️ Adding New Services
 
-The **User Service** is implemented using:
-- **Spring Boot**: For building the RESTful API and dependency injection.
-- **Spring Data JPA**: For robust database interactions and ORM mapping.
-- **Lombok**: To reduce boilerplate code (Getters, Setters, Builders).
-- **Validation API**: Ensures data integrity via `@Valid` and JSR-380 annotations.
-- **Global Exception Handling**: Centralized error management using `@ControllerAdvice`.
+Follow this pattern to maintain consistency across the project:
 
-### Key Features
-- **User CRUD**: Full lifecycle management for user entities.
-- **Email Validation**: Enforced unique email constraints.
-- **Audit Fields**: Automatic tracking of `createdAt` and `updatedAt` timestamps.
+### 1. Create the Service Directory
+Use a meaningful name (e.g., `order-service`).
+```bash
+mkdir order-service
+cd order-service
+# Initialize Spring Boot / Node.js project
+```
+
+### 2. Add Docker Context
+Create a `Dockerfile` in the new service directory. Use the multi-stage build pattern from the `user` service for consistency.
+
+### 3. Update Orchestration
+Add the new service to the root [docker-compose.yml](file:///home/smnaim/microservice-project/docker-compose.yml).
+```yaml
+  order-service:
+    build:
+      context: ./order-service
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://user-db:5432/order_db
+    depends_on:
+      - user-db
+```
+
+### 4. Create Kubernetes Manifests
+Add a new deployment/service file in [k8s/](file:///home/smnaim/microservice-project/k8s/) following the existing templates.
+
+### 5. Update CI/CD
+Update [.github/workflows/main.yml](file:///home/smnaim/microservice-project/.github/workflows/main.yml) to include build steps for the new service.
+
+---
 
 ## 🐳 Dockerization & DevOps
 
 ### Containerization Strategy
-To ensure environment parity, each microservice is containerized using **Docker**. A multi-stage Dockerfile is utilized to keep the final image size minimal and secure.
-
-```dockerfile
-# Stage 1: Build
-FROM maven:3.9-eclipse-temurin-21 AS build
-COPY . /app
-WORKDIR /app
-RUN mvn clean package -DskipTests
-
-# Stage 2: Runtime
-FROM eclipse-temurin:21-jre-jammy
-COPY --from=build /app/target/*.jar app.jar
-ENTRYPOINT ["java", "-jar", "/app.jar"]
-```
+Each microservice is containerized using **Docker**. A multi-stage Dockerfile is utilized to keep the final image size minimal and secure.
 
 ### Infrastructure & Orchestration
-- **Docker Compose**: Used for local orchestration, spinning up the `user-service` and `postgresql` database with a single command.
-- **GitHub Actions (CI)**: Automates the build and test process on every push, ensuring code quality.
-- **Kubernetes (CD)**: Designed for future deployment using K8s for auto-scaling, self-healing, and service discovery.
+- **Docker Compose**: Used for local orchestration.
+- **GitHub Actions (CI)**: Automates the build and test process.
+- **Kubernetes (CD)**: manifests located in `k8s/` for production-grade orchestration.
 
 ### Why this DevOps approach?
-1. **Scalability**: Independent scaling of the User Service based on traffic demands.
-2. **Reliability**: Isolated container environments prevent "it works on my machine" issues.
-3. **Efficiency**: Automated pipelines (CI/CD) reduce manual deployment overhead and lead time.
-4. **Resilience**: Kubernetes ensures the service remains available even if individual pods fail.
+1. **Scalability**: Independent scaling of services.
+2. **Reliability**: Isolated container environments.
+3. **Efficiency**: Automated pipelines (CI/CD).
+4. **Resilience**: Kubernetes self-healing and service discovery.
